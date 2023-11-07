@@ -412,7 +412,7 @@ export class Color
 
 	static def from raw
 		if typeof raw == 'string'
-			if raw[0] == '#' and !raw.match(/^\#([A-Fa-f0-9]{6})([A-Fa-f0-9]{2})?$/)
+			if raw[0] == '#' and !raw.match(/^\#([A-Fa-f0-9]{3})([A-Fa-f0-9]{3})?([A-Fa-f0-9]{2})?$/)
 				return new NamedColor(raw.slice(1))
 
 			raw = parseColorString(raw)
