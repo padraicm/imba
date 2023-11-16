@@ -122,6 +122,9 @@ export default class Bundle < Component
 	get pubdir
 		build? and static? ? '.' : 'public'
 
+	get copypublic
+		o.copypublic
+
 	get distInsideRoot?
 		#distInsideRoot ??= (/^(\.\/|\w)/).test(np.relative(fs.cwd,outdir))
 
@@ -1554,8 +1557,10 @@ export default class Bundle < Component
 				let file = outfs.lookup(asset.fullpath)
 				await file.write(asset.#contents,asset.hash)
 
-			if staticFilesPath and !program.tmpdir
+			if staticFilesPath and !program.tmpdir && copypublic
 				await copyPublicFiles!
+				log.ts "copied public files"
+				
 
 			# is this only really needed for hmr?
 			await mfile.write(JSON.stringify(entryManifest,null,2),manifest.hash)
