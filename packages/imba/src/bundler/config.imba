@@ -128,6 +128,7 @@ export const defaultConfig = {
 			platform: 'browser'
 			format: 'esm'
 			splitting: true
+			copypublic: true
 		}
 
 		iife: {
@@ -140,6 +141,7 @@ export const defaultConfig = {
 		client: {
 			extends: 'web'
 			splitting: true
+			copypublic: true
 		}
 
 		css: {
@@ -155,6 +157,7 @@ export const defaultConfig = {
 			platform: 'browser'
 			sourcemap: false
 			splitting: false
+			copypublic: true
 		}
 
 		worker: {
