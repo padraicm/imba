@@ -227,6 +227,7 @@ export var F =
 	DIFF_MODIFIERS: 2 ** 4
 	DIFF_INLINE: 2 ** 5
 
+
 var NESTED_TPL_REGEX = ///
 	@\{(@(\!?\w+)\? )?
 	([^{}]*(:?\{
@@ -292,6 +293,7 @@ export var SETTYPE = do |node,type,ctx|
 		# return node.set(generics: type)
 
 	return node.set(datatype: type)
+
 
 
 # Helpers for operators
@@ -3900,6 +3902,7 @@ export class ClassDeclaration < Code
 		@path = @name
 		@ownName = @name
 		@realName = @name isa Access ? @name.right : @name
+		# @internalName = STACK.toInternalClassName(@name)
 
 		if sup
 			sup.traverse()
@@ -4145,7 +4148,6 @@ export class ClassDeclaration < Code
 			cflags = cflags | ClassFlags.HasMixins
 
 		if !tsc
-			
 			let hasInitedHook = !!instanceMethodMap["#__inited__"]
 			let hasDecorators = allDecorators:length > 0
 
@@ -4205,10 +4207,11 @@ export class ClassDeclaration < Code
 		scope.virtualize # is this always needed?
 		scope.context.value = name
 		scope.context.reference = name
-
 		var tsc = STACK.tsc
 		var up = STACK.up
 		var o = @options or {}
+
+		
 
 		var cname = @ownName isa Access ? @ownName.right : @ownName
 		var origName = @name isa Access ? @name.right : @name
@@ -4396,6 +4399,7 @@ export class ClassDeclaration < Code
 		elif sup
 			jshead += " {mo('extends')} {M(sup)}"
 
+
 		if name isa Access and !exportForDts and !isExtension
 			jshead = "{name.c} = {jshead}"
 
@@ -4412,6 +4416,7 @@ export class ClassDeclaration < Code
 			let access = name isa Access
 			let getter = name isa Access ? name.c : @cname
 			js = "{js}; {scope__.root.globalRef}.{@cname} = {getter}"
+
 
 		return js
 
@@ -4604,6 +4609,45 @@ export class TagDeclaration < ClassDeclaration
 				%export %default class %localName extends %superName { %body }
 				'''
 
+
+			tpl:body = body.c
+			tpl:superName = sup
+
+			try tpl:export = option(:export) or !!@name.variable.@value.isExported
+
+			if isExtension and isGlobal
+				return TPL tpl, '''
+					declare global { interface %declareName extends %localName {} }
+					class %localName { %body }
+				'''
+			elif isExtension
+				try tpl:path = @name.variable.importPath
+				
+				if tpl:path
+					return TPL tpl, '''
+						declare module %path { interface %declareName extends %localName {} }
+						class %localName { %body }
+					'''
+
+				return TPL tpl,'''
+					%export interface %declareName extends %localName {}
+					class %localName { %body }
+				'''
+			elif isGlobal
+				return TPL tpl,'''
+					declare global {
+						interface %declareName extends %localName {}
+						class %declareName {}
+						interface HTMLElementTagNameMap { "%name": %declareName }
+					}
+					class %localName extends %superName {  %body }
+				'''
+			else
+				return TPL tpl,'''
+					%export interface %localName extends %superName { }
+					%export class %localName { %body }
+				'''
+
 		elif option(:extension)
 			let namevar = @name.@variable
 			let cls = namevar or CALL(runtime:getTagType,[name,STR(name.toClassName)])
@@ -4619,7 +4663,6 @@ export class TagDeclaration < ClassDeclaration
 				name.error "tag {name.symbol} already exists"
 
 		let closure = scope__.parent
-		# console.log @cssns,@cssid
 		@config:cssns = cssns if @cssns
 		@config:cssid = cssid if @cssid
 		@config:name = name.symbol if name.isClass
@@ -11146,6 +11189,8 @@ export class Tag < TagLike
 				option(:iife,true)
 			# if not we need to wrap the whole thing in an iife
 			# let up = STACK.
+			# console.log tvar
+			# if tag is expression we want to suppress certain warnings
 			if type isa TagTypeIdentifier and !isSelf
 				if type.isAsset
 					add "var {tvar} = new {M("SVGSVGElement",type)}"
