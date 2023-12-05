@@ -251,11 +251,13 @@ let sup = {
 	})
 }
 
+
 export function sup$(self,symbol) {
 	sup.self = self;
 	sup.target = sup.cache[symbol];
 	return sup.proxy;
 }
+
 
 export function register$(klass,symbol,name,flags,into = null) {
 	
