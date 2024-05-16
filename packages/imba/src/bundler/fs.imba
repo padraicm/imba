@@ -252,6 +252,7 @@ export class FileNode < FSNode
 			let dir = program.outdir + '/'
 			let color = LOG_COLORS[ext] or 'green'
 
+
 			await nodefs.promises.writeFile(abs,body)
 
 			if program.br and ext.match(/\.([mc]?js|css|map|txt|md|json)/) and asset..public
