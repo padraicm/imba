@@ -556,6 +556,12 @@ export def defineTag name, klass, options = {}
 		proto.#cssid = options.cssid
 		proto.flags$ns = ids.trim! + ' '
 
+	if options.sourceFile
+		proto.__sourceFile = options.sourceFile
+		proto.__sourceLine = options.sourceLine
+		proto.__sourceColumn = options.sourceColumn
+		
+
 	if proto.#htmlNodeName and !options.extends
 		options.extends = proto.#htmlNodeName
 

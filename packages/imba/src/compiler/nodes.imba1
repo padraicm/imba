@@ -3931,7 +3931,17 @@ export class TagDeclaration < ClassDeclaration
 
 		@config:cssns = cssns if @cssns
 		@config:cssid = cssid if @cssid
-
+		
+		if className == TagDeclaration
+			let locmap = helpers.locationToLineColMap(STACK.SOURCECODE)
+			let lc = locmap[loc[0]] or [0,0]
+			let line = lc[0]
+			let column = lc[1]
+						
+			@config:sourceFile = fspath.resolve(s:_options:cwd, STACK.sourcePath)
+			@config:sourceLine = line
+			@config:sourceColumn = column
+		
 		if !STACK.tsc
 			if @staticInit
 				js += "; {OP('.',LIT(className),initKey).c}()"
