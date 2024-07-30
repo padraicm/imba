@@ -6769,6 +6769,18 @@ class TagDeclaration extends ClassDeclaration {
     }
     tpl.config = Obj.wrap(this._config);
 
+    if (className == TagDeclaration) {
+      let locmap = helpers.locationToLineColMap(STACK.SOURCECODE);
+      let lc = locmap[(this.loc() || [0])[0]] || [0, 0];
+
+      this._config.sourceFile = fspath.resolve(
+        STACK._options.cwd,
+        STACK.sourcePath(),
+      );
+      this._config.sourceLine = lc[0];
+      this._config.sourceColumn = lc[1];
+    }
+
     this._staticInits.add([
       BR,
       CALL(this.runtime().defineTag, [this.name(), THIS, tpl.config]),
