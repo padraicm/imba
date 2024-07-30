@@ -4625,6 +4625,17 @@ export class TagDeclaration < ClassDeclaration
 		@config:name = name.symbol if name.isClass
 		tpl:config = Obj.wrap(@config)
 
+		if className == TagDeclaration
+			let locmap = helpers.locationToLineColMap(STACK.SOURCECODE)
+			let lc = locmap[loc[0]] or [0,0]
+			let line = lc[0]
+			let column = lc[1]
+						
+			@config:sourceFile = fspath.resolve(s:_options:cwd, STACK.sourcePath)
+			@config:sourceLine = line
+			@config:sourceColumn = column
+		
+
 		@staticInits.add([BR,CALL(runtime:defineTag,[name,THIS,tpl:config])])
 
 		if @staticInit
