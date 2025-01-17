@@ -187,6 +187,9 @@ export default class Bundle < Component
 		entryPoints = o.entryPoints or []
 		builder = null
 
+		# log.ts "config { JSON.stringify(options) }"
+		
+		
 		# log.prefix = ["%d ","bundler"]
 
 		if parent

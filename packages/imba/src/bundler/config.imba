@@ -5,6 +5,7 @@ const optionTypes = {
 	minify: 'boolean'
 	target: 'array'
 	splitting: 'boolean'
+	copypublic: 'boolean'
 }
 
 export const LOADER_SUFFIXES = {
