@@ -4625,7 +4625,7 @@ export class TagDeclaration < ClassDeclaration
 		@config:name = name.symbol if name.isClass
 		tpl:config = Obj.wrap(@config)
 
-		if className == TagDeclaration
+		if className == TagDeclaration || true
 			let locmap = helpers.locationToLineColMap(STACK.SOURCECODE)
 			let lc = locmap[loc[0]] or [0,0]
 			let line = lc[0]
