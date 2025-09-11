@@ -6769,7 +6769,7 @@ class TagDeclaration extends ClassDeclaration {
     }
     tpl.config = Obj.wrap(this._config);
 
-    if (className == TagDeclaration) {
+    if (className == TagDeclaration || true) {
       let locmap = helpers.locationToLineColMap(STACK.SOURCECODE);
       let lc = locmap[(this.loc() || [0])[0]] || [0, 0];
 
