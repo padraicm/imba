@@ -3931,8 +3931,9 @@ export class TagDeclaration < ClassDeclaration
 
 		@config:cssns = cssns if @cssns
 		@config:cssid = cssid if @cssid
+
 		
-		if className == TagDeclaration
+		if className == TagDeclaration || true
 			let locmap = helpers.locationToLineColMap(STACK.SOURCECODE)
 			let lc = locmap[loc[0]] or [0,0]
 			let line = lc[0]
