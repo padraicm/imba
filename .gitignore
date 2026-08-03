@@ -40,3 +40,6 @@ test/apps/**/*.js
 **/.vite-node
 *.tsbuildinfo
 packages/zed-imba/target
+
+# this repo uses npm; pnpm lockfiles are local artifacts
+pnpm-lock.yaml
