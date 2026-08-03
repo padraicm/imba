@@ -178,13 +178,50 @@ def parseOptions options, extras = []
 	options.#parsed = yes
 	return options
 
-def run entry, o, extras
+const ENTRY_EXTENSIONS = ['.imba','.html','.js']
+
+def files_from_directory dir
+	let result = []
+
+	for name in nfs.readdirSync(dir)
+		const full_path = np.join(dir, name)
+
+		if nfs.statSync(full_path).isDirectory!
+			result = result.concat(files_from_directory(full_path))
+		elif ENTRY_EXTENSIONS.indexOf(np.extname(name)) >= 0
+			result.push(full_path)
+
+	return result
+
+# Expand the raw positional arguments into concrete entrypoint paths. A
+# directory is expanded into every entry-like file it contains, everything
+# else is passed through so the `?as=` suffix survives until it is parsed.
+def resolveEntries entries
+	let result = []
+
+	for entry in entries
+		let [path] = entry.split('?')
+
+		if nfs.existsSync(path) and nfs.statSync(path).isDirectory!
+			for file in files_from_directory(path)
+				result.push(file)
+		else
+			result.push(entry)
+
+	return result
+
+def run entries, o, extras
+
+	entries = entries == undefined ? [] : (Array.isArray(entries) ? entries.slice! : [entries])
+
+	let entry = entries[0]
+
 	if entry.._name == 'serve'
-		# no args
+		# no positional arguments - cac passed the options object first
 		let t = o
 		o = entry
-		entry = t
-		entry = entry[0] if entry..length
+		entries = Array.isArray(t) ? t.slice! : (t == undefined ? [] : [t])
+		entry = entries[0]
 
 	unless o._name == 'serve' or o._name == 'build'
 		return cli.help! if o.args.length == 0
@@ -195,14 +232,14 @@ def run entry, o, extras
 		console.log "imba {o.command} error: missing required argument 'script'"
 		process.exit 1
 
-	let [path,q] = entry.split('?')
+	entries = resolveEntries(entries)
+	entry = entries[0]
 
-	path = np.resolve(path)
+	# The `?as=<preset>` suffix only applies to the main entrypoint
+	let mainQuery = entry..split('?')[1]
 
 	o.cache = new Cache(o)
 	o.fs = new FileSystem(o.cwd,o)
-
-	# TODO support multiple entrypoints - especially for html
 
 	extendConfig(prog.config.options,overrides)
 
@@ -215,17 +252,26 @@ def run entry, o, extras
 			o.outdir = o.tmpdir = nfs.realpathSync(tmpdir.name)
 			# fake loader
 
-	let file = o.fs.lookup(path)
+	let files = entries.map do |item|
+		o.fs.lookup(np.resolve(item.split('?')[0]))
 
-	if q
-		o.as = q.replace(/^as=/,'')
-	elif file.ext == '.html'
+	if mainQuery
+		o.as = mainQuery.replace(/^as=/,'')
+	elif files[0]..ext == '.html'
 		o.as = 'html'
 
 		unless o.command == 'build'
 			o.as = 'node'
-	
-	let params = resolvePresets(prog.config,{entryPoints: [file.rel]},o.as or ['node',o.platform or 'node'])
+
+	# The bundler sorts entryPoints, so the entrypoint everything else hangs
+	# off is passed along separately rather than inferred from the order.
+	let entryPoints = files.map do $1.rel
+
+	let params = resolvePresets(
+		prog.config
+		{entryPoints, mainEntry: entryPoints[0]}
+		o.as or ['node',o.platform or 'node']
+	)
 
 	unless o.command == 'build'
 		o.port ||= await getport(port: getport.makeRange(3000, 3100))
@@ -280,7 +326,7 @@ common(cli.command('run [script]', { isDefault: true }).description('Imba'))
 	.option("--memlimit <bytes>", "Set the memory limit of the process")
 	.action(run)
 
-common(cli.command('build [script]').description('Build an imba/js/html entrypoint and their dependencies'))
+common(cli.command('build [scripts...]').description('Build an imba/js/html entrypoint and their dependencies'))
 	.option("--platform <platform>", "Platform for entry","browser")
 	.action(run)
 	# .option("--as <preset>", "Configuration preset","node")
