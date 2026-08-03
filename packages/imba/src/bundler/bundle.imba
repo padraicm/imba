@@ -82,7 +82,7 @@ export default class Bundle < Component
 		!!program.watch
 
 	get serve?
-		(program.command == 'serve') or (root.entryPoints[0].match(/\.html$/) and !build?)
+		(program.command == 'serve') or (root.mainEntry..match(/\.html$/) and !build?)
 
 	get run?
 		!build?
@@ -199,6 +199,9 @@ export default class Bundle < Component
 		cwd = fs.cwd
 		platform = o.platform or 'browser'
 		entryPoints = o.entryPoints or []
+		# entryPoints is sorted whenever it changes, so the entrypoint that
+		# everything else hangs off is tracked separately.
+		mainEntry = o.mainEntry or entryPoints[0]
 		builder = null
 
 		# log.ts "config { JSON.stringify(options) }"
@@ -440,6 +443,7 @@ export default class Bundle < Component
 	def addEntrypoint src
 		entryPoints.push(src) unless entryPoints.indexOf(src)>= 0
 		entryPoints.sort!
+		mainEntry ??= src
 		self
 
 	def setup
@@ -530,9 +534,9 @@ export default class Bundle < Component
 
 				if args.path == '__ENTRYPOINT__'
 
-					let abs = await esb.resolve(entryPoints[0],kind: args.kind, resolveDir: fs.cwd)
+					let abs = await esb.resolve(mainEntry,kind: args.kind, resolveDir: fs.cwd)
 					return {
-						path: args.pluginData..__ENTRYPOINT__ or abs.path # fs.abs(entryPoints[0])
+						path: args.pluginData..__ENTRYPOINT__ or abs.path # fs.abs(mainEntry)
 						pluginData: {
 							path: args.path
 							asset: yes
@@ -589,7 +593,7 @@ export default class Bundle < Component
 			let resolved
 			# Could we do away with this entrypoint thing?
 			if path == '__ENTRYPOINT__'
-				resolved = {path: fs.resolve(entryPoints[0]), suffix: '?' + q}
+				resolved = {path: fs.resolve(mainEntry), suffix: '?' + q}
 			else
 				resolved = await esresolve(args)
 
@@ -1438,8 +1442,8 @@ export default class Bundle < Component
 			# main = Object.values(result.metafile.outputs)[0]
 			main = assets.find do $1.main
 
-		let mainEntry = try ins[entryPoints[0]].output
-		main = mainEntry or main
+		let mainOutput = try ins[mainEntry].output
+		main = mainOutput or main
 		# result.manifest = entryManifest
 
 		###
@@ -1655,9 +1659,9 @@ export default class Bundle < Component
 			console.log("\x1bc") if program.clear
 
 			if program.#listening
-				log.info "built %bold in %ms - %heap (%address)",entryPoints[0],builder.elapsed,program.#listening
+				log.info "built %bold in %ms - %heap (%address)",entryPoints.join(', '),builder.elapsed,program.#listening
 			else
-				log.info "built %bold in %ms - %heap",entryPoints[0],builder.elapsed
+				log.info "built %bold in %ms - %heap",entryPoints.join(', '),builder.elapsed
 
 			built? = yes
 			emit('built',result)
