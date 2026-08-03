@@ -661,9 +661,9 @@ var IF = function (cond, body, alt, o) {
 var NODIFY = function (val) {
   if (val == null) {
     return new Nil();
-  } else if (val == false) {
+  } else if (val === false) {
     return new False();
-  } else if (val == true) {
+  } else if (val === true) {
     return new True();
   } else if (typeof val == "string" || val instanceof String) {
     return STR(val);
@@ -6767,19 +6767,27 @@ class TagDeclaration extends ClassDeclaration {
     if (this.name().isClass()) {
       this._config.name = this.name().symbol();
     }
-    tpl.config = Obj.wrap(this._config);
+    // must run before Obj.wrap - it snapshots _config into ast nodes
+    if (STACK.sourcePath()) {
+      // loc() walks into the name node, which throws for names without a
+      // literal token (web components, dynamic tag names, slots, mixins)
+      let start = null;
+      try {
+        start = (this.loc() || [])[0];
+      } catch (e) {}
 
-    if (className == TagDeclaration || true) {
       let locmap = helpers.locationToLineColMap(STACK.SOURCECODE);
-      let lc = locmap[(this.loc() || [0])[0]] || [0, 0];
+      let lc = (start == null ? null : locmap[start]) || [0, 0];
 
       this._config.sourceFile = fspath.resolve(
-        STACK._options.cwd,
+        STACK._options.cwd || "",
         STACK.sourcePath(),
       );
       this._config.sourceLine = lc[0];
       this._config.sourceColumn = lc[1];
     }
+
+    tpl.config = Obj.wrap(this._config);
 
     this._staticInits.add([
       BR,
