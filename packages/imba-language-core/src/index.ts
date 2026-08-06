@@ -1,0 +1,28 @@
+export { compileImba, type ImbaCompilation } from './compiler';
+export { spansToMappings, EXACT_FEATURES, CONTAINER_FEATURES } from './mappings';
+export { ImbaVirtualCode, computeChangeRange } from './virtualCode';
+export { createImbaLanguagePlugin, isImbaScriptId, type ScriptIdLike } from './languagePlugin';
+export { createImbaDiagnosticsPlugin } from './plugins/imbaDiagnostics';
+export { createImbaSemanticTokensPlugin, IMBA_SEMANTIC_LEGEND } from './plugins/imbaSemanticTokens';
+export { createImbaDocumentSymbolsPlugin } from './plugins/imbaDocumentSymbols';
+export { createImbaServicePlugins } from './servicePlugins';
+export { createImbaEventsPlugin } from './plugins/imbaEvents';
+export { createImbaCompletionsPlugin, createImbaKeywordsPlugin } from './plugins/imbaCompletions';
+export { createImbaTagsPlugin } from './plugins/imbaTags';
+export { createImbaWorkspaceSymbolsPlugin } from './plugins/imbaWorkspaceSymbols';
+export { createImbaFoldingPlugin, computeIndentFoldingRanges } from './plugins/imbaFolding';
+export { warmImbaCompileCache } from './warmer';
+export {
+	getProjectCompilerForFile,
+	setProjectCompilerEnabled,
+	isProjectCompilerEnabled,
+	type ProjectCompiler,
+} from './projectCompiler';
+export { applyImbaConfig, getImbaConfig, DEFAULT_CONFIG, type ImbaToolingConfig } from './config';
+export { ImbaTagIndex, getTagIndex, type WorkspaceTag } from './tagIndex';
+export { setupImbaProject } from './projectSetup';
+export { resolveImbaTypings, resolveImbaPackageDir } from './typings';
+export { createTypeScriptServices, preferImbaDefinitions } from './plugins/typescriptServices';
+export { filterTsDiagnostic } from './plugins/tsDiagnosticRules';
+export { toImbaIdentifier, toImbaString } from './conversion';
+export { clearCompileMemoryCache, compileCacheKey, getCacheDir } from './cache';

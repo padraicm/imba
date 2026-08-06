@@ -1,5 +1,5 @@
 const imba1 = require('./bootstrap.compiler.js');
-const imba2 = require('./bootstrap.compiler2.js');
+const imba2 = require('../src/compiler/compiler.mjs');
 const chokidar = require('chokidar');
 const fs = require('fs');
 const np = require('path');
@@ -20,13 +20,16 @@ let globalNames = {
 let distdir = np.resolve(__dirname, '..', 'dist')
 // Create the dist directory
 fs.mkdirSync(distdir, { recursive: true });
+for (let file of ["plugin.mjs", "plugin.cjs", "compiler.old.cjs"]) {
+	let path = np.join(distdir, file);
+	if (fs.existsSync(path)) fs.unlinkSync(path);
+}
 
 function plugin(build) {
 	// console.log('setting up plugin',build,this);
 	let options = this.options;
 	let self = this;
 	let watcher = this.watcher;
-	let fs = require('fs');
 	let basedir = np.resolve(__dirname, '..');
 	let outdir = options.outdir || np.dirname(options.outfile);
 	let distrel = './' + np.relative(distdir, outdir);
@@ -54,8 +57,8 @@ function plugin(build) {
 		return { path: src, external: true }
 	});
 
-	build.onLoad({ filter: /\.imba1/ }, async (args) => {
-		// console.log('loading imba',args);
+	build.onLoad({ filter: /\.imba1$/ }, async (args) => {
+		// console.log('loading imba1',args);
 		if (watcher) watcher.add(args.path);
 
 		let key = `${args.path}:${options.platform}`
@@ -71,18 +74,19 @@ function plugin(build) {
 			worker: 'webworker'
 		}[options.platform] || options.platform || 'web';
 		let t0 = Date.now();
-
 		let body = imba1.compile(raw, {
 			target: target,
 			filename: args.path,
 			sourcePath: args.path
 		});
+
 		time += (Date.now() - t0);
 		compileCache[key] = { input: raw, output: body.js };
+
 		return { contents: body.js }
 	})
 
-	build.onLoad({ filter: /\.imba/ }, async (args) => {
+	build.onLoad({ filter: /\.imba$/ }, async (args) => {
 		// console.log('loading imba',args);
 		if (watcher) watcher.add(args.path);
 		let raw = await fs.promises.readFile(args.path, 'utf8');
@@ -225,7 +229,6 @@ let bundles = [
 		entryPoints: ["src/imba/imba.imba"],
 		outdir: "dist",
 		platform: "browser",
-		external: [ "vite"],
 		format: "esm",
 		outExtension: { ".js": ".mjs" },
 	},
@@ -243,7 +246,6 @@ let bundles = [
 		outExtension: { ".js": ".node.js" },
 		format: "cjs",
 		outdir: "dist",
-		external: ["lodash.mergewith", "vite", 'local-pkg'],
 		platform: "node",
 	},
 	{
@@ -251,7 +253,7 @@ let bundles = [
 		outExtension: { ".js": ".node.mjs" },
 		format: "esm",
 		outdir: "dist",
-		external: [ "vite", 'local-pkg', 'get-port'],
+		external: ['get-port'],
 		platform: "node",
 	},
 	{
@@ -284,8 +286,8 @@ let bundles = [
 		alias: aliases,
 		outExtension: { ".js": ".imba.js" },
 		minify: true,
-		
-		external: ["lodash.mergewith", "chokidar", "esbuild", "vite-node/client","vite-node/server", "vite"],
+
+		external: ["chokidar", "esbuild"],
 		outdir: ".",
 		format: "cjs",
 		platform: "node",
@@ -296,32 +298,10 @@ let bundles = [
 		],
 		outExtension: { ".js": ".browser.imba.js" },
 		minify: true,
-		external: ["chokidar", "esbuild", "vite-node/client","vite-node/server", "vite"],
+		external: ["chokidar", "esbuild"],
 		outdir: ".",
 		format: "esm",
 		platform: "browser",
-	},
-	{
-		entryPoints: [
-			"src/vite-plugin/plugin.imba"
-		],
-		outExtension: { ".js": ".mjs" },
-		minify: true,
-		external: ["lodash.mergewith", "vite", "imba", "debug", "picomatch", "get-port", "esbuild"],
-		outdir: "dist",
-		format: "esm",
-		platform: "node",
-	},
-	{
-		entryPoints: [
-			"src/vite-plugin/plugin.imba"
-		],
-		outExtension: { ".js": ".cjs" },
-		minify: true,
-		external: ["lodash.mergewith", "vite", "imba", "debug", "picomatch", "get-port", "esbuild"],
-		outdir: "dist",
-		format: "cjs",
-		platform: "node",
 	},
 	{
 		entryPoints: [

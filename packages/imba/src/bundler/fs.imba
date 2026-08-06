@@ -1,9 +1,7 @@
-const micromatch = require 'micromatch'
-
 import nfs from 'fs'
 import np from 'path'
 import {fdir} from '../../vendor/fdir/index.js'
-import {parseAsset,parseHTML} from '../compiler/assets'
+import {parseAsset,parseHTML} from './assets'
 import Component from './component'
 import ChangeLog from './changes'
 
@@ -39,18 +37,54 @@ const LOG_COLORS = {
 	".css": "magenta"
 }
 
-const matchToRegexCache = {}
+const globRegexCache = {}
 
-def matchToRegex str
-	matchToRegexCache[str] ||= if true
-		str = str.replace(/(\*\*|\*|\.)/g) do(m,t)
-			if t == '**'
-				"(.*)"
-			elif t == '*'
-				"([^\/]+)"
-			elif t == '.'
-				"\\."
-		new RegExp(str)
+def toArray value
+	if value == null
+		[]
+	elif value isa Array
+		value
+	else
+		[value]
+
+def globToRegex pattern
+	globRegexCache[pattern] ||= if true
+		pattern = String(pattern)
+		let source = '^'
+		let i = 0
+		while i < pattern.length
+			let chr = pattern[i]
+			if chr == '*'
+				if pattern[i + 1] == '*'
+					i += 2
+					if pattern[i] == '/'
+						i++
+						source += '(?:.*\\/)?'
+					else
+						source += '.*'
+					continue
+				else
+					source += '[^\\/]*'
+			elif chr == '?'
+				source += '[^\\/]'
+			elif chr == '/'
+				source += '\\/'
+			else
+				source += chr.replace(/[-[\]{}()+?.,\\^$|#\s]/g,'\\$&')
+			i++
+		new RegExp(source + '$')
+
+def globPatternMatches path, pattern
+	if pattern isa RegExp
+		pattern.test(path)
+	else
+		globToRegex(pattern).test(path)
+
+def globFilter paths, match, ignore = null
+	let patterns = toArray(match)
+	let ignored = toArray(ignore)
+	paths.filter do(path)
+		!ignored.some(do globPatternMatches(path,$1)) and patterns.some(do globPatternMatches(path,$1))
 
 # special list with optimizations for filtering etc
 export class FSTree < Array
@@ -60,12 +94,11 @@ export class FSTree < Array
 		#cache = {}
 
 	def withExtension ext
-		match(".({ext.replace(/,/g,'|')})$")
+		match(new RegExp("\\.({ext.replace(/,/g,'|')})$"))
 
 	def match match
-		if typeof match == 'string'
-			let regex = matchToRegex(match)
-			#cache[match] ||= filter(do regex.test($1.rel))
+		let regex = match isa RegExp ? match : globToRegex(match)
+		new FSTree(...filter(do regex.test($1.rel)))
 
 	def add node
 		let idx = indexOf(node)
@@ -90,10 +123,10 @@ export class FSNode
 	static def create root, src, abs
 		let ext = src.slice(src.lastIndexOf('.'))
 		let types = {
-			'.json': JSONFile
-			'.imba': ImbaFile
-			'.imba1': Imba1File
-			'.svg': SVGFile
+				'.json': JSONFile
+				'.imba': ImbaFile
+				'.imba1': Imba1File
+				'.svg': SVGFile
 			'.png': ImageFile
 			'.apng': ImageFile
 			'.jpg': ImageFile
@@ -323,12 +356,6 @@ export class Imba1File < FileNode
 
 			let code = await read!
 
-			let params = {
-				code: code
-				options: o
-				type: 'imba1'
-			}
-
 			let t = Date.now!
 			let out = await context.workers.exec('compile_imba1', [code,o])
 			log.success 'compile %path in %ms',rel,Date.now! - t
@@ -542,7 +569,7 @@ export default class FileSystem < Component
 			return sources.slice(0) if !ignore
 			match = ['*']
 
-		let res = micromatch(sources.paths,match,ignore: ignore)
+		let res = globFilter(sources.paths,match,ignore)
 
 		return new FSTree(...res.map(do nodemap[$1]))
 

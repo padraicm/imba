@@ -1,5 +1,49 @@
 # Changelog
 
+## Unreleased
+
+* Cache compiled output in the project's `node_modules/.cache/imba` instead of a global, install-relative `.imba-cache`. The previous default lived next to the imba install, so every project built with a shared system/linked imba wrote into one ever-growing cache that was never pruned — progressively slowing builds and inflating memory as it accumulated. Compiled output is now per-project and resets when imba is reinstalled. `IMBA_CACHEDIR` still overrides it, and it falls back to a project-local `.imba-cache` when there is no `node_modules`.
+
+* Keep the path-alias map — whose ids seed CSS class/scope names and field-registry keys — in a shared user-level location (`~/.imba`, overridable with `IMBA_ALIASDIR`) rather than the per-project cache, so separately-built projects still get non-colliding ids when their output is mixed together. Its lookup is now O(1) (a key→index `Map`) instead of an `Array.indexOf` plus a full re-read of the alias file on every newly-seen path (which was O(n²) across a build).
+
+* Ignore watcher changes to files that aren't part of the bundle. Logs, the bundle's own outputs, and other scratch files no longer trigger a rebuild — previously any file add or removal forced a full resolve. Two cases still rebuild: adding or removing a resolution sibling of a watched input (e.g. `test.node.imba` next to a tracked `test.imba`, which changes what an import resolves to), and any change while the last build is failing (so creating a missing imported file recovers it).
+
+* Scale the compile worker pool to the machine instead of a hard-coded count. It now uses `cores - 1` workers (minimum 2, capped at 8), based on `os.availableParallelism()` so it respects container/CI CPU limits — parallelizing builds on bigger machines while leaving a core for the main thread (esbuild, the dev server). Workers are still created on demand, so this is only a ceiling. Override with `IMBA_MAX_WORKERS`.
+
+## 2.0.0-alpha.252
+
+* Fix `@thenable` leaking memory by retaining its settled promise (and the `async_hooks`/`AsyncLocalStorage` context captured by it). The cached promise is now released once the method resolves or rejects, and subsequent calls/awaits settle immediately instead of re-caching a promise that would re-pin a fresh async context.
+
+* Fix `imbac` swallowing compile errors — it printed nothing and exited 0 when compilation failed with `-p`/`--print`. Errors and warnings now go to stderr (keeping stdout clean for compiled output), and the process exits with a non-zero code on compile errors. Also fix `imbac -s` (stdio mode) crashing on any input.
+
+* Remove Vite support from the main `imba` package. Imba's own esbuild-based toolchain (`imba run`, `imba build`, `imba serve`) is now the only supported bundling path.
+
+    This removes the `imba/plugin` export (the Vite plugin), the Vite-powered `imba preview` command, the Vitest-based `imba test` and `imba bench` commands, the `vite` and `vitest` templates from `imba create`, the `$vite$` compile-time constant, and the optional `vite`/`vite-node`/`vitest`/`@testing-library/*` peer dependencies.
+
+* Consolidate the editor grammar/tokenizer into a single source. `imba/src/program` was a stale fork of the grammar that `imba-monarch` (used by vscode-imba and typescript-imba-plugin) had long since evolved past. The `imba/program` and `compiler.program` apis now re-export from imba-monarch, so web-based highlighting (e.g. imba.io) gets the same maintained grammar as the editors - including several years of fixes the old copy lacked.
+
+* Fix server rendering of attributes with `null`/`undefined` values - they are now omitted instead of rendering the literal string `"undefined"`. This regressed when first-render attribute setting was made unconditional.
+
+* `imba-monarch` is now bundled (never externalized) in node builds, like `imba` itself - it is imba source that cannot be required at runtime.
+
+* Fix editor/highlighting grammar tokenizing a `#` comment on the last line of a file (without trailing newline) as invalid code.
+
+* Fix elements with numeric keys (`<div key=100>`) being recreated on every render. The number was stringified when looking up the cached element but not when storing it, so the lookup never hit - remounting the element (and its entire subtree) on each commit.
+
+* Allow `tag` to be used as a regular identifier outside tag declarations. Bare calls like `tag value` are now reserved for tag declaration syntax; use `tag(value)` for function calls.
+
+* Allow regex literals as decorated class field names, compiling them to static string keys for field descriptors and field-registry metadata.
+
+* Improve syntax errors for unbalanced pairs. Unclosed `(`/`[`/`{`/`<tag` now report `unclosed '(' - expected ')'` anchored at the token that opened the pair, instead of `unmatched OUTDENT` at the next dedent or `missing )` at the end of the file. Mismatched closers explain what they should have closed (`unmatched ']' - expected ')' to close '(' (line 13)`), and unterminated strings report the line the string started on.
+
+* Fix parser errors being reported at the very top of the file when the offending token was generated by the compiler (e.g. implicit object braces). Such errors now point to the closest real source location.
+
+* Use friendly descriptions instead of internal token names in parser errors — `Unexpected newline` instead of `Unexpected 'TERMINATOR'`, `Unexpected ')'` instead of `Unexpected 'CALL_END'`, etc.
+
+* Fix crash when printing compiler errors whose range spans multiple lines.
+
+* Fix compiler crash when `$1`-style argument shorthands are used outside of a method or block — this now reports a proper error.
+
 ## 2.0.0-alpha.251
 
 * Refresh prerelease after a failed 2.0.0-alpha.250 publish.

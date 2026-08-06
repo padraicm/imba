@@ -1,6 +1,7 @@
 import Component from './component'
 import ChangeLog from './changes'
 import np from 'path'
+$node$ import chokidar from 'chokidar'
 
 const FLAGS = {
 	CHANGE: 1
@@ -23,12 +24,18 @@ export default class Watcher < Component
 		if $node$
 			let normalize = do(src) src.split(np.sep).join(np.posix.sep)
 			let initial = Object.keys(map)
-			#watcher = require('chokidar').watch(initial,{
+			#watcher = chokidar.watch(initial,{
 				ignoreInitial: true,
 				depth: 1,
 				ignored: isIgnored.bind(self) # ['.*','.git/**','.cache/**',fs.resolve('dist')],
 				cwd: fs.cwd
 			})
+
+			# fs.watch can fail on transient or unwatchable paths (sockets, files
+			# removed while being added, permission issues). Chokidar forwards these
+			# as 'error' events, which would be thrown if left unhandled.
+			#watcher.on('error') do(err)
+				console.warn "watcher error ({err.code or 'unknown'}): {err.message}"
 
 			#watcher.on('change') do(src,stats)
 				src = normalize(src)
@@ -51,8 +58,12 @@ export default class Watcher < Component
 
 		return #watcher
 
-	def isIgnored path
+	def isIgnored path, stats
 		return true if path.match(/(\/\.(git|imba-cache|cache)\/|\.DS_Store)/)
+		# never try to watch sockets, fifos or devices - fs.watch throws
+		# UNKNOWN/EINVAL on these (ie. tmp/puma-dev-1563.sock)
+		if stats and !stats.isFile! and !stats.isDirectory! and !stats.isSymbolicLink!
+			return true
 		return false
 
 	def add ...paths
@@ -63,7 +74,7 @@ export default class Watcher < Component
 				uniq.push(path)
 
 		if #watcher and uniq.length
-			#watcher.add(...uniq)
+			#watcher.add(uniq)
 		self
 
 	def close
