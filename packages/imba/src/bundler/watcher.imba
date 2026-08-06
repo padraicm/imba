@@ -31,6 +31,12 @@ export default class Watcher < Component
 				cwd: fs.cwd
 			})
 
+			# fs.watch can fail on transient or unwatchable paths (sockets, files
+			# removed while being added, permission issues). Chokidar forwards these
+			# as 'error' events, which would be thrown if left unhandled.
+			#watcher.on('error') do(err)
+				console.warn "watcher error ({err.code or 'unknown'}): {err.message}"
+
 			#watcher.on('change') do(src,stats)
 				src = normalize(src)
 				history.mark(src,FLAGS.CHANGE) # with change / remove flags
@@ -52,8 +58,12 @@ export default class Watcher < Component
 
 		return #watcher
 
-	def isIgnored path
+	def isIgnored path, stats
 		return true if path.match(/(\/\.(git|imba-cache|cache)\/|\.DS_Store)/)
+		# never try to watch sockets, fifos or devices - fs.watch throws
+		# UNKNOWN/EINVAL on these (ie. tmp/puma-dev-1563.sock)
+		if stats and !stats.isFile! and !stats.isDirectory! and !stats.isSymbolicLink!
+			return true
 		return false
 
 	def add ...paths
