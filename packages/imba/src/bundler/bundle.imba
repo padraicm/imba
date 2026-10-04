@@ -1652,7 +1652,11 @@ export default class Bundle < Component
 		for item in assets
 			manifest.outputs[item.path] = item
 
-		let hash = createHash(assets.map(do $1.hash ).sort!.join('-'))
+		# An asset only has a hash when its file name carries one, or when it is
+		# js (which falls back to hashing its body above). With unhashed
+		# entryNames ("[name]") css and map outputs had none, so a style-only
+		# edit produced the same bundle hash and was never written in watch mode.
+		let hash = createHash(assets.map(do $1.hash or createHash($1.#contents or '')).sort!.join('-'))
 
 		if #hash == hash and #errors
 			#errors = null
